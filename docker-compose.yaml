@@ -1,0 +1,42 @@
+version: '3.0'
+
+services:
+
+  db:
+    image: mysql:8.0.29
+    restart: always
+    environment:
+      MYSQL_DATABASE: exampledb
+      MYSQL_USER: exampleuser
+      MYSQL_PASSWORD: examplepass
+      MYSQL_ROOT_PASSWORD: 'password'
+    volumes:
+      - db:/var/lib/mysql
+
+  dbsetup:
+    image: mysql:8.0.29
+    depends_on:
+      db:
+                condition: service_started
+    volumes:
+      - ./sql:/tmp/script
+    command: sh -c 'mysql -h db -uroot -p password < /tmp/script/all-dump.sql'
+
+  wordpress:
+    image: wordpress:php8.0-apache
+    depends_on:
+      - dbsetup
+    restart: always
+    ports:
+      - 8080:80
+    environment:
+      WORDPRESS_DB_HOST: db
+      WORDPRESS_DB_USER: exampleuser
+      WORDPRESS_DB_PASSWORD: examplepass
+      WORDPRESS_DB_NAME: exampledb
+    volumes:
+      - ./html:/var/www/html
+
+
+volumes:
+  db:
