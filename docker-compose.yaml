@@ -45,8 +45,6 @@ services:
         - WORDPRESS_DB_NAME=${DB_NAME}
     volumes:
       - ./html:/var/www/html
-    links:
-        - db
 
 volumes:
   db:
