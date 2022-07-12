@@ -1,42 +1,49 @@
-version: '3.0'
+version: '3'
 
 services:
 
   db:
     image: mysql:8.0.29
+    container_name: mysql_server
     restart: always
+    depends_on:
+      - dbinit
     environment:
-      MYSQL_DATABASE: exampledb
-      MYSQL_USER: exampleuser
-      MYSQL_PASSWORD: examplepass
-      MYSQL_ROOT_PASSWORD: 'password'
+        - MYSQL_DATABASE=${DB_NAME}
+        - MYSQL_USER=${DB_USER}
+        - MYSQL_PASSWORD=${DB_PASS}
+        - MYSQL_ROOT_PASSWORD=${DB_ROOT_PSWD}
     volumes:
       - db:/var/lib/mysql
+      - sql_script:/docker-entrypoint-initdb.d
 
-  dbsetup:
-    image: mysql:8.0.29
-    depends_on:
-      db:
-                condition: service_started
+  dbinit:
+    build: ./docker/init_db/.
+    container_name: db_init
+    environment:
+        - MYSQL_DUMP_PASSWORD=${MYSQL_DUMP_PASSWORD}
+
     volumes:
-      - ./sql:/tmp/script
-    command: sh -c 'mysql -h db -uroot -p password < /tmp/script/all-dump.sql'
+      - sql_script:/tmp/dec
+      - ./sql:/tmp/enc
+    command: sh -c "cd /tmp/dec && gpg -d --batch --passphrase '${MYSQL_DUMP_PASSWORD}' /tmp/enc/dump.tar.gz.gpg | tar -xvzf - "
 
   wordpress:
     image: wordpress:php8.0-apache
+    container_name: wordpress
     depends_on:
-      - dbsetup
+      - db
     restart: always
     ports:
       - 8080:80
     environment:
-      WORDPRESS_DB_HOST: db
-      WORDPRESS_DB_USER: exampleuser
-      WORDPRESS_DB_PASSWORD: examplepass
-      WORDPRESS_DB_NAME: exampledb
+        - WORDPRESS_DB_HOST=db
+        - WORDPRESS_DB_USER=${DB_USER}
+        - WORDPRESS_DB_PASSWORD=${DB_PASS}
+        - WORDPRESS_DB_NAME=${DB_NAME}
     volumes:
       - ./html:/var/www/html
 
-
 volumes:
   db:
+  sql_script:
